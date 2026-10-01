@@ -316,4 +316,15 @@ describe('DurableAgent.recoverActiveRuns', () => {
     expect(resume).toHaveBeenCalledOnce();
     resumed.cleanup();
   });
+
+  it('removes a recovered run that finishes from the registry', async () => {
+    await seed(store, makeSnapshot('run-done', 'running', { agentId: 'agent-A', threadId: 't', resourceId: 'r' }), 'r');
+    vi.spyOn(agent, 'getWorkflow').mockReturnValue({
+      createRun: vi.fn(async () => ({ restart: vi.fn(async () => ({ status: 'success' })) })),
+    } as any);
+
+    const { succeeded } = await agent.recoverActiveRuns();
+    expect(succeeded).toBe(1);
+    expect(globalRunRegistry.get('run-done')).toBeUndefined();
+  });
 });
