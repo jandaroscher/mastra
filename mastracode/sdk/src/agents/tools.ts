@@ -24,6 +24,7 @@ import { getWorkflowTool } from '../tools/workflows/get-workflow.js';
 import { listWorkflowsTool } from '../tools/workflows/list-workflows.js';
 import { runWorkflowTool } from '../tools/workflows/run-workflow.js';
 import { WORKFLOW_MANAGEMENT_TOOL_IDS } from '../tools/workflows/tool-ids.js';
+import { readControllerState } from '../utils/controller-state.js';
 
 /** Minimal shape for tools passed to createDynamicTools. */
 export type ToolLike = {
@@ -138,7 +139,7 @@ export function createDynamicTools(
     requestContext: RequestContext;
   }): ToolsInput | Promise<ToolsInput> {
     const ctx = requestContext.get('controller') as AgentControllerRequestContext<MastraCodeComposedState> | undefined;
-    const state = ctx?.getState();
+    const state = readControllerState(ctx);
 
     const modelId = ctx?.session?.modelId;
     const isAnthropicModel = modelId?.startsWith('anthropic/');

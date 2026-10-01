@@ -11,6 +11,7 @@ import type { LSPConfig, SkillSource } from '@mastra/core/workspace';
 import { DEFAULT_CONFIG_DIR } from '../constants.js';
 import { loadSettings, resolveLspSetting } from '../onboarding/settings.js';
 import type { MastraCodeState } from '../schema.js';
+import { readControllerState } from '../utils/controller-state.js';
 import { isPathWithinRoot } from '../utils/path-security.js';
 import { getPlansDir } from '../utils/plans.js';
 
@@ -191,7 +192,7 @@ export async function getDynamicWorkspace({
   backgroundToolsEnabled?: boolean;
 }) {
   const ctx = requestContext.get('controller') as AgentControllerRequestContext<MastraCodeState> | undefined;
-  const state = ctx?.getState();
+  const state = readControllerState(ctx);
 
   const rawProjectPath = state?.projectPath;
 

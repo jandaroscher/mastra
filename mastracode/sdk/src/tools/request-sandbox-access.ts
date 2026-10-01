@@ -10,6 +10,7 @@ import { createTool } from '@mastra/core/tools';
 import { LocalFilesystem } from '@mastra/core/workspace';
 import { z } from 'zod';
 import type { MastraCodeState } from '../schema.js';
+import { readControllerState } from '../utils/controller-state.js';
 import { isPathAllowed, getAllowedPathsFromContext } from './utils.js';
 
 function expandTilde(p: string): string {
@@ -45,7 +46,7 @@ export const requestSandboxAccessTool = createTool({
         | undefined;
 
       // Resolve to absolute path (expand ~ first since Node path APIs don't handle it)
-      const projectRoot = agentControllerCtx?.getState()?.projectPath ?? process.cwd();
+      const projectRoot = readControllerState(agentControllerCtx)?.projectPath ?? process.cwd();
       const expanded = expandTilde(requestedPath);
       const absolutePath = path.isAbsolute(expanded) ? expanded : path.resolve(projectRoot, expanded);
 
@@ -84,10 +85,15 @@ export const requestSandboxAccessTool = createTool({
         // filesystem allowlist from `sandboxAllowedPaths` on every call
         // (getDynamicWorkspace), so an unawaited setState would let that
         // rebuild clobber the in-turn widen below before the grant lands.
-        const controllerState = agentControllerCtx?.getState();
+        const controllerState = readControllerState(agentControllerCtx);
         const currentAllowed = (controllerState?.sandboxAllowedPaths as string[] | undefined) ?? [];
         const nextAllowed = currentAllowed.includes(absolutePath) ? currentAllowed : [...currentAllowed, absolutePath];
         if (!currentAllowed.includes(absolutePath)) {
+          // A controller entry rebuilt from a persisted run has no methods. Fail
+          // with a clear message instead of reporting a grant that was not saved.
+          if (agentControllerCtx && typeof agentControllerCtx.setState !== 'function') {
+            throw new Error('controller state is not writable in this run, so the grant could not be saved');
+          }
           await agentControllerCtx?.setState({
             sandboxAllowedPaths: nextAllowed,
           });

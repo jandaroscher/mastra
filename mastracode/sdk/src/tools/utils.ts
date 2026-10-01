@@ -1,6 +1,8 @@
 import * as path from 'node:path';
 import { buildSkillPaths } from '../agents/workspace.js';
 import { DEFAULT_CONFIG_DIR } from '../constants.js';
+import { readControllerState } from '../utils/controller-state.js';
+import type { ControllerStateSource } from '../utils/controller-state.js';
 
 /**
  * Check whether `targetPath` falls inside `projectRoot` or any of the
@@ -26,14 +28,9 @@ export function getAllowedPathsFromContext(
   toolContext: { requestContext?: { get: (key: string) => unknown } } | undefined,
 ): string[] {
   const agentControllerCtx = toolContext?.requestContext?.get('controller') as
-    | {
-        getState?: () => { sandboxAllowedPaths?: string[]; projectPath?: string; configDir?: string };
-        session?: {
-          state?: { get?: () => { sandboxAllowedPaths?: string[]; projectPath?: string; configDir?: string } };
-        };
-      }
+    | ControllerStateSource<{ sandboxAllowedPaths?: string[]; projectPath?: string; configDir?: string }>
     | undefined;
-  const state = agentControllerCtx?.getState?.() ?? agentControllerCtx?.session?.state?.get?.();
+  const state = readControllerState(agentControllerCtx);
   const projectPath = state?.projectPath ? path.resolve(state.projectPath) : process.cwd();
   const configDir = state?.configDir ?? DEFAULT_CONFIG_DIR;
   const skillPaths = buildSkillPaths(projectPath, configDir);

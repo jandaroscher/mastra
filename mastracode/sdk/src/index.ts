@@ -124,6 +124,7 @@ import { stateSchema } from './schema.js';
 import type { MastraCodeState } from './schema.js';
 
 import { mastraBrand } from './theme-palette.js';
+import { readControllerState } from './utils/controller-state.js';
 import { DiscardingScoresStorage } from './utils/discarding-scores-storage.js';
 import { syncGateways } from './utils/gateway-sync.js';
 import { registerSessionAndWaitForMaintenance, UNKNOWN_OWNER, unregisterSession } from './utils/maintenance-lock.js';
@@ -182,7 +183,7 @@ function getInjectorSessionState(
   const agentControllerContext = requestContext?.get('controller') as
     | AgentControllerRequestContext<{ untrustedCheckout?: boolean; baseRef?: string; projectPath?: string }>
     | undefined;
-  return agentControllerContext?.getState();
+  return readControllerState(agentControllerContext);
 }
 
 function isTransientConnectionError(error: unknown): boolean {

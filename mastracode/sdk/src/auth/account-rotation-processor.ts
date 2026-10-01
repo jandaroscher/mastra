@@ -26,6 +26,7 @@ import { resolveCredentialStore } from '../agents/credential-resolver.js';
 import { listResolvableModePacks, resolveModel, resolveRequestThinkingLevel } from '../agents/model.js';
 import { resolveModePackFallbackChain } from '../onboarding/packs.js';
 import { findModePackForModel, loadSettings, resolveModePackModels } from '../onboarding/settings.js';
+import { readControllerState } from '../utils/controller-state.js';
 import {
   getRequestAccountSelection,
   isRequestAccountRoutingExhausted,
@@ -467,7 +468,7 @@ type RoutingProcessorArgs = Pick<ProcessAPIErrorArgs, 'requestContext' | 'state'
  * session so both writers share one serialization key and one read source.
  */
 export type RoutingControllerContext = {
-  session?: { modelId?: unknown; modeId?: unknown };
+  session?: { modelId?: unknown; modeId?: unknown; state?: { get?: () => Record<string, unknown> } };
   threadId?: unknown;
   getState?: () => Record<string, unknown>;
   setState?: (updates: Record<string, unknown>) => Promise<void>;
@@ -515,7 +516,7 @@ function resolveAccountRoute(
   explicit?: { packId: string; modelId: string },
 ): AccountRoute | null {
   const controller = getRoutingController(args);
-  const state = controller?.getState?.();
+  const state = readControllerState(controller);
   const pending = state?.mastracodePendingPackFallback as
     | { toPackId?: unknown; toModelId?: unknown; threadId?: unknown }
     | null
@@ -789,7 +790,11 @@ export class AccountRotationProcessor implements Processor {
     }
     const controller = args.requestContext?.get('controller') as
       | {
-          session?: { modelId?: unknown; modeId?: unknown };
+          session?: {
+            modelId?: unknown;
+            modeId?: unknown;
+            state?: { get?: () => { activeModelPackId?: unknown; thinkingLevel?: unknown } };
+          };
           getState?: () => { activeModelPackId?: unknown; thinkingLevel?: unknown };
         }
       | undefined;
@@ -804,7 +809,7 @@ export class AccountRotationProcessor implements Processor {
         : 'build';
     const settings = loadSettings(this.options.settingsPath);
     const packs = listResolvableModePacks(settings);
-    const controllerState = controller?.getState?.();
+    const controllerState = readControllerState(controller);
     const statePackId = controllerState?.activeModelPackId ?? settings.models.activeModelPackId;
     const activePack = findModePackForModel(
       settings,

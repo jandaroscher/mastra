@@ -10,6 +10,7 @@ import { LOCAL_KNOWLEDGE_ORG_ID, resolveKnowledgeScopeIdentity } from '../knowle
 import { loadSettings } from '../onboarding/settings.js';
 import { ANTHROPIC_PROMPT_CACHE_TTL } from '../providers/anthropic-prompt-cache.js';
 import type { MastraCodeState } from '../schema.js';
+import { readControllerState } from '../utils/controller-state.js';
 import { getOmScope } from '../utils/project.js';
 import { resolveModel, resolvePackMemoryModelChain } from './model.js';
 import type { PackMemoryModelChainEntry } from './model.js';
@@ -30,7 +31,7 @@ function resolveOmRoleModelForRequest(
   settingsPath?: string,
 ): GatewayLanguageModel | PackMemoryModelChainEntry[] {
   const controller = requestContext.get('controller') as AgentControllerRequestContext<MastraCodeState> | undefined;
-  const state = controller?.getState() as MastraCodeState | undefined;
+  const state = readControllerState(controller) as MastraCodeState | undefined;
   const resolveOptions = { remapForCodexOAuth: true, requestContext } as const;
 
   // The configured settings file, not the default one: a caller that points the
@@ -161,7 +162,7 @@ export function getDynamicMemory(storage: MastraCompositeStore, vector?: MastraV
 
   return ({ requestContext }: { requestContext: RequestContext }) => {
     const controller = requestContext.get('controller') as AgentControllerRequestContext<MastraCodeState> | undefined;
-    const state = controller?.getState() as MastraCodeState | undefined;
+    const state = readControllerState(controller) as MastraCodeState | undefined;
     const subconsciousEnabled = isSubconsciousEnabled(vector);
     const factoryProjectId = state?.factoryProjectId;
     const isFactory = typeof factoryProjectId === 'string' && factoryProjectId.trim().length > 0;
