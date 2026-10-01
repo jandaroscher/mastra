@@ -19,6 +19,7 @@ import { Agent } from '../../agent';
 import { DurableStepIds } from '../constants';
 import { createDurableAgent } from '../create-durable-agent';
 import type { DurableAgent } from '../durable-agent';
+import { globalRunRegistry } from '../run-registry';
 
 function makeSnapshot(
   runId: string,
@@ -295,5 +296,24 @@ describe('DurableAgent.recoverActiveRuns', () => {
     expect(succeeded).toBe(1);
     // `discovered` must not have been picked up when `runId` is set.
     expect(restartedRunIds).toEqual(['explicit-run']);
+  });
+
+  it('keeps a recovered run that suspends registered so it can be resumed', async () => {
+    await seed(store, makeSnapshot('run-parked', 'running', { agentId: 'agent-A', threadId: 't', resourceId: 'r' }), 'r');
+    const resume = vi.fn(async () => ({ status: 'success' }));
+    vi.spyOn(agent, 'getWorkflow').mockReturnValue({
+      createRun: vi.fn(async () => ({ restart: vi.fn(async () => ({ status: 'suspended' })), resume })),
+    } as any);
+
+    const { succeeded } = await agent.recoverActiveRuns();
+    expect(succeeded).toBe(1);
+    // The recovered run is parked on a tool approval: its registry entry must
+    // survive so the approval resume drives the recovered run in this process.
+    expect(globalRunRegistry.get('run-parked')).toBeDefined();
+
+    const resumed = await agent.resume('run-parked', { approved: true }, { toolCallId: 'call-1' });
+    await globalRunRegistry.get('run-parked')?.workflowExecution;
+    expect(resume).toHaveBeenCalledOnce();
+    resumed.cleanup();
   });
 });
