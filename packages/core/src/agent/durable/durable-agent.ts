@@ -3094,6 +3094,7 @@ export class DurableAgent<
         if (result?.status === 'failed') {
           throw new Error((result as any).error?.message || 'Workflow recover failed');
         }
+        return result?.status;
       })
       .catch(async error => {
         const leaseLossError = recoveryLease.getLossError();
@@ -3686,13 +3687,19 @@ export class DurableAgent<
             runError = error instanceof Error ? error : new Error(String(error));
           },
         });
+        let suspended = false;
         try {
           const workflowExecution = globalRunRegistry.get(targetRunId)?.workflowExecution;
           if (workflowExecution) {
-            await workflowExecution;
+            suspended = (await workflowExecution) === 'suspended';
           }
         } finally {
-          cleanup();
+          // Keep the registry entry alive on suspend so a later `resume()` (e.g. a
+          // tool approval) finds the recovered run and its subscribers — mirrors
+          // `generate()`. FINISH/ERROR/ABORT schedule auto-cleanup after resume.
+          if (!suspended) {
+            cleanup();
+          }
         }
         if (runError) throw runError;
         recovered.push({ runId: targetRunId, status: 'success' });
