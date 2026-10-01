@@ -16,6 +16,7 @@ import {
 import { AMAZON_BEDROCK_GATEWAY_ID, createAmazonBedrockGateway } from '../providers/amazon-bedrock-gateway.js';
 import { isThinkingLevelSetting } from '../thinking.js';
 import type { ThinkingLevelSetting } from '../thinking.js';
+import { readControllerState } from '../utils/controller-state.js';
 import { resolveCredentialStore } from './credential-resolver.js';
 import { resolveCustomProviders } from './custom-provider-source.js';
 import {
@@ -311,7 +312,7 @@ export function getDynamicModel(
 ): ResolvedModel | ModelWithRetries[] {
   const agentControllerContext = requestContext.get('controller') as AgentControllerRequestContext<any> | undefined;
 
-  const controllerState = agentControllerContext?.getState?.() as
+  const controllerState = readControllerState(agentControllerContext) as
     | {
         activeModelPackId?: unknown;
         mastracodePendingPackFallback?: { toPackId?: unknown; toModelId?: unknown; threadId?: unknown } | null;

@@ -1,6 +1,7 @@
 import type { AgentControllerRequestContext } from '@mastra/core/agent-controller';
 import type { MastraCodeComposedState, MastraCodeState } from '../schema.js';
 import { detectCommonBinariesAsync } from '../utils/binaries.js';
+import { readControllerState } from '../utils/controller-state.js';
 import { getCurrentGitBranchAsync } from '../utils/project.js';
 import type { PromptContext, PromptSection } from './prompts/index.js';
 import { buildFullPromptSections, joinPromptSections } from './prompts/index.js';
@@ -49,7 +50,7 @@ export async function getDynamicInstructionSections({
   const agentControllerContext = requestContext.get('controller') as
     | AgentControllerRequestContext<MastraCodeComposedState>
     | undefined;
-  const state = agentControllerContext?.getState();
+  const state = readControllerState(agentControllerContext);
   const modeId = agentControllerContext?.session?.modeId ?? 'build';
   // No host fallback: when the session carries no project (hosted chat-only
   // sessions), the prompt gets no working directory and no git probe — the

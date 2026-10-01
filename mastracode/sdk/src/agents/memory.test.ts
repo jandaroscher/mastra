@@ -446,6 +446,41 @@ describe('getDynamicMemory', () => {
       requestContext,
     });
   });
+
+  it('reads the state snapshot from a controller entry rebuilt from a persisted durable run', async () => {
+    // A durable/evented run recovered after a restart rebuilds its request
+    // context from the JSON snapshot persisted with the run: the controller
+    // entry keeps its `state` snapshot but loses getState() and friends.
+    vi.resetModules();
+    memoryConstructorMock.mockClear();
+    const state = {
+      projectPath: '/tmp/project',
+      omScope: 'resource',
+      observationThreshold: 12_345,
+      observerModelId: 'openai/gpt-5.4-mini',
+    };
+    const liveController = {
+      getState: () => state,
+      state,
+      session: { id: 'session-1', ownerId: 'mastracode-owner', state: { get: () => state } },
+    };
+    const values = new Map<string, unknown>([['controller', JSON.parse(JSON.stringify(liveController))]]);
+    const requestContext = { get: vi.fn(key => values.get(key)), set: vi.fn((key, value) => values.set(key, value)) };
+
+    const { getDynamicMemory } = await import('./memory.js');
+    const memory = getDynamicMemory({ storage: true } as never)({
+      requestContext: requestContext as never,
+    }) as unknown as {
+      config: MemoryConfig;
+    };
+
+    const om = memory.config.options.observationalMemory;
+    expect(om.scope).toBe('resource');
+    expect(om.observation).toMatchObject({ messageTokens: 12_345 });
+    expect(om.observation.model({ requestContext: requestContext as never })).toEqual({
+      modelId: 'openai/gpt-5.4-mini',
+    });
+  });
 });
 
 describe('pack-driven OM models (A11)', () => {
