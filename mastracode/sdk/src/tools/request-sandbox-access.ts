@@ -89,6 +89,11 @@ export const requestSandboxAccessTool = createTool({
         const currentAllowed = (controllerState?.sandboxAllowedPaths as string[] | undefined) ?? [];
         const nextAllowed = currentAllowed.includes(absolutePath) ? currentAllowed : [...currentAllowed, absolutePath];
         if (!currentAllowed.includes(absolutePath)) {
+          // A controller entry rebuilt from a persisted run has no methods. Fail
+          // with a clear message instead of reporting a grant that was not saved.
+          if (agentControllerCtx && typeof agentControllerCtx.setState !== 'function') {
+            throw new Error('controller state is not writable in this run, so the grant could not be saved');
+          }
           await agentControllerCtx?.setState({
             sandboxAllowedPaths: nextAllowed,
           });

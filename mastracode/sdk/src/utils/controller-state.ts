@@ -23,5 +23,10 @@ export function readControllerState<TState>(
   if (typeof ctx?.getState === 'function') return ctx.getState();
   const sessionState = ctx?.session?.state;
   if (typeof sessionState?.get === 'function') return sessionState.get();
-  return ctx?.state ?? undefined;
+  // Falling back to the deprecated `state` field is intentional and only meant
+  // for the serialized case: it is the one field that survives the JSON round
+  // trip of the request context when a run is recovered. It is the snapshot
+  // taken at turn start, so state changes made mid-turn (for example
+  // `/sandbox remove`) are not visible to the recovered run.
+  return ctx?.state;
 }
